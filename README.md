@@ -1,8 +1,8 @@
 # 学术期刊配色推荐器
 
-使用R语言shiny包，写了一个小app，用于学术论文画图时，离散颜色选择和参考，程序已部署至云端，欢迎访问：<a href="http://lcpmgh.com/colors/" target="_blank">科研绘图配色推荐器</a>
+使用R语言的shiny包写创建一个小程序，用于学术论文画图时，离散配色方案的选择和参考，该程序已部署至云端，欢迎访问：<a href="http://lcpmgh.com/colors/" target="_blank">科研绘图配色推荐器</a>
 
- 数据库中的配色方案，收集于以下文章：
+ 程序中包含的配色方案（保存于@colors.txt），收集于以下文章：
 
 1. [跟着顶刊学科研绘图——science配色篇（一）](https://zhuanlan.zhihu.com/p/679737536)
 
