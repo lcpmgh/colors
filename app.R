@@ -1,6 +1,5 @@
 library(shiny)
 library(reactable)
-# library(data.table)
 library(shinydashboard)
 library(scales)
 library(gridExtra)
@@ -171,7 +170,7 @@ server <- function(input, output, session){
   # 动态数据
   rv <- reactiveValues()
   rv$value <- 1
-  observeEvent(c(input$id_select, input$plot, input$num_select), {
+  observeEvent(c(input$id_select, input$plot, input$num_select, input$showtype), {
     # reactive({
     if(input$showtype == "id"){
       id <- input$id_select %>% as.numeric()
@@ -261,12 +260,14 @@ server <- function(input, output, session){
               sortable = F, 
               resizable = F,
               showPageSizeOptions = T,
+              searchable = T,
               highlight = T,
               striped = T,
               bordered = T,
               compact = F,
               width = "1001px",
-              fullWidth = F)
+              fullWidth = F,
+              theme = reactableTheme(searchInputStyle = list("margin-top" = "7px", "margin-right" = "7px")))
   })
 }
 
