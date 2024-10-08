@@ -36,10 +36,11 @@ ui <- dashboardPage(
 
 server <- function(input, output, session){
   # 数据和函数
-  colors <- readLines("@colors.txt") %>% str_split(",") %>% .[!duplicated(.)]             #读取并识别颜色
-  colors_nasc  <- map_int(colors, length) %>% order() %>% colors[.] #按子颜色数量排序
-  colors_table <- data.frame(col_id=1:length(colors_nasc), col_num=map_int(colors_nasc, length)) #颜色序号数量表
+  colors <- readLines("@colors.txt") %>% str_split(",") %>% lapply(., sort) %>% .[!duplicated(.)]  #读取、排序、去重
+  colors_nasc  <- map_int(colors, length) %>% order() %>% colors[.]                                #按子颜色数量排序
+  colors_table <- data.frame(col_id=1:length(colors_nasc), col_num=map_int(colors_nasc, length))   #颜色序号数量表
   examp_plot   <- function(id, colors_nasc=NULL, custom=c("#F5A889", "#ACD6EC")){
+    # 函数，根据给定颜色id或自定义的颜色，画4个案例图
     # id=0时自定义颜色，否则按colors_nasc中的颜色
     if(id == 0){
       tcolor <- custom
@@ -48,7 +49,7 @@ server <- function(input, output, session){
       tcolor <- colors_nasc[[id]]
       ncolor <- length(tcolor)
     }
-    # 1.bar
+    # 图1.bar
     dat_bar <- data.frame(a=sample(letters, ncolor, replace = F), 
                           b=runif(ncolor, 7, 10))
     p_bar <- ggplot(dat_bar, aes(a, b, fill=a))+
@@ -57,7 +58,7 @@ server <- function(input, output, session){
       scale_fill_manual(values = tcolor)+
       labs(x="x-axis", y="y-axis", title = "Bar Chart with outlines")+
       theme_bw()+theme(plot.title = element_text(hjust = 0.5))
-    # 2.box
+    # 图2.box
     dat_box <- data.frame(a=sample(letters, ncolor, replace = F),
                           b=runif(ncolor*20, 7, 10))
     p_box <- ggplot(dat_box, aes(a, b, fill=a))+
@@ -66,7 +67,7 @@ server <- function(input, output, session){
       scale_fill_manual(values = tcolor)+
       labs(x="x-axis", y="y-axis", title = "Boxplot with outlines")+
       theme_bw()+theme(plot.title = element_text(hjust = 0.5))
-    # 3.point
+    # 图3.point
     dat_point <- data.frame(a=rep(runif(30), ncolor),
                             b=rep(runif(30), ncolor),
                             t=rep(sample(letters, ncolor, replace = F), 30))
@@ -76,7 +77,7 @@ server <- function(input, output, session){
       scale_fill_manual(values = tcolor)+
       labs(x="x-axis", y="y-axis", title = "scatterplot without outlines")+
       theme_bw()+theme(plot.title = element_text(hjust = 0.5))
-    # 4.line
+    # 图4.line
     dat_line <- data.frame(a=rep(1:20, ncolor),
                            b=rep(1:ncolor, each=20)+rnorm(20*ncolor, 0, 0.3), 
                            t=rep(sample(letters, ncolor), each=20))
@@ -88,25 +89,28 @@ server <- function(input, output, session){
     # 合并
     p <- grid.arrange(p_bar, p_box, p_point, p_line, padding=0, nrow = 2, ncol = 2)
     return(p)
-  }            #函数，画4个案例图
+  }            
   iscolors     <- function(str){
-    # 使用 str_detect 函数检查 str 是否是正确的颜色HEX码
+    # 函数，使用str_detect检查str是否是正确的颜色HEX码
     colo <- str_split(str, "[,，;、 ]") %>% unlist() %>% str_trim() %>% .[nchar(.) > 0] %>% .[!duplicated(.)]
     sig  <- str_detect(colo, "^#[A-Fa-f0-9]{6}$")
     if(any(!sig) | length(colo)>16){
+      # 如不是颜色，返回F
       return(F)
     } else{
+      # 如是颜色，返回颜色HEX
       return(colo)
     }
-  }                                                             #函数，判断输入是否为HEX颜色
+  }
+  
   ##### ui #####
   output$uipanel <- renderUI({
     tagList(
       tags$head(tags$link(rel = "shortcut icon", href = "pmgh.ico")),
       tags$style(HTML(".custom-margin {margin-bottom: 20px;}")),
       tags$div(class = "custom-margin",
-        HTML("<h3 style='display: inline;'>方案选择</h3>"),
-        HTML(paste("<h5 style='display: inline;'>(数据库内现有", length(colors_nasc), "种配色方案)</h5>"))),
+               HTML("<h3 style='display: inline;'>方案选择</h3>"),
+               HTML(paste("<h5 style='display: inline;'>(数据库内现有", length(colors_nasc), "种配色方案)</h5>"))),
       radioButtons(inputId  = "showtype",
                    label    = NULL,
                    choices  = list("配色数据库方案id" = "id", "自定义配色方案" = "custom"),
@@ -163,8 +167,9 @@ server <- function(input, output, session){
       reactableOutput(outputId = "colors_db")
     )
   })
+  
   ##### server #####
-  # 更新slider
+  # 点击上一个或下一个后，更新slider对应的值
   observeEvent(input$pre, {
     newValue <- max(1, input$id_select - 1)
     updateSliderInput(session, "id_select", value = newValue)
@@ -228,7 +233,7 @@ server <- function(input, output, session){
                                })
                                do.call(tagList, color_divs)
                              })
-                             ),
+              ),
               sortable = F, 
               resizable = F,
               showPageSizeOptions = F,
@@ -295,7 +300,7 @@ server <- function(input, output, session){
                                })
                                do.call(tagList, color_divs)
                              })
-                             ),
+              ),
               language = reactableLang(
                 searchPlaceholder = "查找..."),
               sortable = F,
@@ -313,10 +318,13 @@ server <- function(input, output, session){
                 JS("function(rowInfo, colInfo) {
                 if (window.Shiny) {
                   Shiny.setInputValue('selected_row', rowInfo.index + 1);
-                  window.scrollTo(0, 0);  // 滚动到页面顶部
+                  window.scrollTo({
+                  top: 0, 
+                  left: 0, 
+                  behavior:'smooth'});  // 平滑滚动到页面顶部
                 }
                 }")}
-            )
+    )
   })
   
   observeEvent(input$selected_row, {
@@ -324,6 +332,7 @@ server <- function(input, output, session){
     if (!is.null(selected_row)) {
       selected_id <- colors_table$col_id[selected_row]
       updateSliderInput(session, "id_select", value = selected_id)
+      # updateTextInput(session, "col_custom", value = paste0(colors_nasc[[selected_row]], collapse = ", "))
     }
   })
 }
