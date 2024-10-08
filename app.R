@@ -131,7 +131,7 @@ server <- function(input, output, session){
       # 按id
       conditionalPanel(condition = "input.showtype == 'id'",
                        selectInput(inputId = "num_select", 
-                                   label = "颜色数量：", 
+                                   label = "选色颜色数量", 
                                    choices = colors_sect$col_num,
                                    selected = "all",
                                    multiple = FALSE),
@@ -170,7 +170,7 @@ server <- function(input, output, session){
                                  width = "1000px",
                                  value = "#4DBBD5, #00A087, #E64B35")),
       # 选择结果
-      h3("所选配色方案："),
+      h3("所选配色方案"),
       reactableOutput(outputId = "colors_info"),
       div(style = "display: flex; align-items: center; width:1001px",
           div(style = "width: 50%; text-align: center;", 
@@ -179,7 +179,7 @@ server <- function(input, output, session){
           div(style = "width: 50%; text-align: center;", 
               h3("方案样式"),
               plotOutput(outputId = "plot_color", width = "500px", height = "400px"))),
-      h3("配色数据库详情（点击表格显示绘图效果）："),
+      h3("配色数据库（点击表格显示绘图效果）"),
       reactableOutput(outputId = "colors_db")
     )
   })
