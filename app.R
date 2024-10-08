@@ -149,6 +149,19 @@ server <- function(input, output, session){
                                                    icon  = icon("angle-right"))))),
       # 自定义
       conditionalPanel(condition = "input.showtype == 'custom'",
+                       div(style = "display: flex; align-items: center; width:700px",
+                           colourInput(inputId = "sele_col", 
+                                       label = "追加颜色", 
+                                       width = "174px",
+                                       value = "skyblue"),
+                           div(style = "width: 15%; text-align: center; padding-left: 20px;  padding-top: 10px;", 
+                               shiny::actionButton(inputId = "add_col", 
+                                                   label = "加入",
+                                                   icon  = icon("plus"))),
+                           div(style = "width: 15%; text-align: center; padding-left: 10px; padding-top: 10px;", 
+                               shiny::actionButton(inputId = "reset_col", 
+                                                   label = "重置",
+                                                   icon  = icon("redo")))),
                        textInput(inputId = "col_custom",
                                  label = "自定义颜色（HEX码，多个颜色以逗号、顿号、空格、分号间隔，颜色数量不可超过16，结果将去重）：",
                                  width = "1000px",
@@ -178,6 +191,22 @@ server <- function(input, output, session){
     newValue <- min(length(colors_nasc), input$id_select + 1)
     updateSliderInput(session, "id_select", value = newValue)
   })
+  # 点击加入或重置颜色，更新textinput
+  observeEvent(input$add_col, {
+    newValue <- str_split(input$col_custom, "[,，;、 ]") %>% 
+      unlist() %>% 
+      str_trim() %>% 
+      .[nchar(.) > 0] %>% 
+      c(., input$sele_col) %>% 
+      .[!duplicated(.)] %>% 
+      paste0(collapse = ",")
+    updateTextInput(session, "col_custom", value = newValue)
+  })
+  observeEvent(input$reset_col, {
+    newValue <- "#4DBBD5, #00A087, #E64B35"
+    updateTextInput(session, "col_custom", value = newValue)
+  })
+  
   # 动态数据
   rv <- reactiveValues()  #创建一个反应值对象rv，用于存储反应性的数据
   rv$value <- 1           #初始值为1
