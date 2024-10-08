@@ -8,6 +8,7 @@ library(magrittr)
 library(stringr)
 library(purrr)
 library(htmltools)
+library(colourpicker)
 
 ui <- dashboardPage(
   dashboardHeader(title = "科研绘图配色推荐器",titleWidth = "100%"),
