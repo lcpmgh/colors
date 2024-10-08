@@ -1,14 +1,16 @@
 library(shiny)
-library(reactable)
-library(shinydashboard)
-library(scales)
-library(gridExtra)
-library(ggplot2)
-library(magrittr)
-library(stringr)
 library(purrr)
+library(scales)
+library(ggplot2)
+library(stringr)
+library(magrittr)
+library(reactable)
+library(gridExtra)
 library(htmltools)
+library(data.table)
+library(shinyWidgets)
 library(colourpicker)
+library(shinydashboard)
 
 ui <- dashboardPage(
   dashboardHeader(title = "科研绘图配色推荐器",titleWidth = "100%"),
@@ -36,10 +38,18 @@ ui <- dashboardPage(
 )
 
 server <- function(input, output, session){
-  # 数据和函数
+  # 数据
   colors <- readLines("@colors.txt") %>% str_split(",") %>% lapply(., sort) %>% .[!duplicated(.)]  #读取、排序、去重
   colors_nasc  <- map_int(colors, length) %>% order() %>% colors[.]                                #按子颜色数量排序
   colors_table <- data.frame(col_id=1:length(colors_nasc), col_num=map_int(colors_nasc, length))   #颜色序号数量表
+  setDT(colors_table)
+  colors_sect  <- colors_table[, c(min(.SD),max(.SD)), .SDcols=1,by="col_num"]  %>% 
+    .[, type:=rep(c("min", "max"), nrow(.)/2)] %>% 
+    dcast(., col_num~type, value.var = "V1") %>% 
+    rbind(data.table(col_num="all", 
+                     max=max(colors_table$col_id), 
+                     min=min(colors_table$col_id)), .)                                              #提取每个数量区间的id范围          
+  # 函数
   examp_plot   <- function(id, colors_nasc=NULL, custom=c("#F5A889", "#ACD6EC")){
     # 函数，根据给定颜色id或自定义的颜色，画4个案例图
     # id=0时自定义颜色，否则按colors_nasc中的颜色
@@ -93,6 +103,7 @@ server <- function(input, output, session){
   }            
   iscolors     <- function(str){
     # 函数，使用str_detect检查str是否是正确的颜色HEX码
+    if(nchar(str_trim(str))<1) return(F)     #如果str是空，直接返回F
     colo <- str_split(str, "[,，;、 ]") %>% unlist() %>% str_trim() %>% .[nchar(.) > 0] %>% .[!duplicated(.)]
     sig  <- str_detect(colo, "^#[A-Fa-f0-9]{6}$")
     if(any(!sig) | length(colo)>16){
@@ -117,35 +128,26 @@ server <- function(input, output, session){
                    choices  = list("配色数据库方案id" = "id", "自定义配色方案" = "custom"),
                    inline   = T,
                    selected = c("按数量" = "id")),
-      # 按数量
-      conditionalPanel(condition = "input.showtype == 'num'",
-                       div(style = "display: flex; align-items: center; width:800px",
-                           div(style = "padding-top: 0px;", 
-                               selectInput(inputId = "num_select", 
-                                           label = "颜色数量：", 
-                                           choices = unique(colors_table$col_num),
-                                           selected = 2,
-                                           multiple = FALSE)), 
-                           div(style = "width: 15%; text-align: center; padding-top: 5px;",
-                               shiny::actionButton(inputId = "plot",
-                                                   label   = "换一个",
-                                                   icon    = icon("play"))))),
       # 按id
       conditionalPanel(condition = "input.showtype == 'id'",
+                       selectInput(inputId = "num_select", 
+                                   label = "颜色数量：", 
+                                   choices = colors_sect$col_num,
+                                   selected = "all",
+                                   multiple = FALSE),
                        div(style = "display: flex; align-items: center; width:700px",
-                           sliderInput(inputId = "id_select", 
-                                       label = "配色方案id：", 
-                                       min = 1, 
-                                       max = length(colors_nasc), 
-                                       width = "500px",
-                                       step = 1, 
-                                       value = 1),
+                           sliderTextInput(inputId = "id_select", 
+                                           label = "选择方案id", 
+                                           choices = seq(colors_sect[[1, "min"]], colors_sect[[1, "max"]]),
+                                           selected = colors_sect[[1, "min"]],
+                                           width = "500px", 
+                                           grid  = T),
                            div(style = "width: 15%; text-align: center; padding-left: 20px;", 
                                shiny::actionButton(inputId = "pre", 
                                                    label = "上一个",
                                                    icon  = icon("angle-left"))),
                            div(style = "width: 15%; text-align: center;", 
-                               shiny::actionButton(inputId = "hex", 
+                               shiny::actionButton(inputId = "nex", 
                                                    label = "下一个",
                                                    icon  = icon("angle-right"))))),
       # 自定义
@@ -183,23 +185,35 @@ server <- function(input, output, session){
   })
   
   ##### server #####
+  # 点击颜色数量，更新下面sliderTextInput中备选id的区间
+  observeEvent(input$num_select, {
+    selected_row <- colors_sect[col_num == input$num_select,]
+    selected_seq <- seq(selected_row$min, selected_row$max)
+    updateSliderTextInput(session, "id_select",
+                          choices = selected_seq,
+                          selected = selected_seq[1])
+  })
   # 点击上一个或下一个后，更新slider对应的值
   observeEvent(input$pre, {
-    newValue <- max(1, input$id_select - 1)
-    updateSliderInput(session, "id_select", value = newValue)
+    selected_row <- colors_sect[col_num == input$num_select,]
+    selected_seq <- seq(selected_row$min, selected_row$max)
+    newValue <- max(selected_seq[1], as.numeric(input$id_select) - 1)
+    updateSliderTextInput(session, "id_select", selected = newValue)
   })
-  observeEvent(input$hex, {
-    newValue <- min(length(colors_nasc), input$id_select + 1)
-    updateSliderInput(session, "id_select", value = newValue)
+  observeEvent(input$nex, {
+    selected_row <- colors_sect[col_num == input$num_select,]
+    selected_seq <- seq(selected_row$min, selected_row$max)
+    newValue <- min(tail(selected_seq,1), as.numeric(input$id_select) + 1)
+    updateSliderTextInput(session, "id_select", selected = newValue)
   })
   # 点击加入或重置颜色，更新textinput
   observeEvent(input$add_col, {
-    newValue <- str_split(input$col_custom, "[,，;、 ]") %>% 
-      unlist() %>% 
-      str_trim() %>% 
-      .[nchar(.) > 0] %>% 
-      c(., input$sele_col) %>% 
-      .[!duplicated(.)] %>% 
+    newValue <- str_split(input$col_custom, "[,，;、 ]") %>%
+      unlist() %>%
+      str_trim() %>%
+      .[nchar(.) > 0] %>%
+      c(., input$sele_col) %>%
+      .[!duplicated(.)] %>%
       paste0(collapse = ",")
     updateTextInput(session, "col_custom", value = newValue)
   })
@@ -211,23 +225,20 @@ server <- function(input, output, session){
   # 动态数据
   rv <- reactiveValues()  #创建一个反应值对象rv，用于存储反应性的数据
   rv$value <- 1           #初始值为1
-  observeEvent(c(input$id_select, input$plot, input$num_select, input$showtype), {
+  observeEvent(c(input$id_select, input$showtype), {
     # 监听多个位置，如果有变动，则运行下面的内容，生成显示颜色方案的id
     if(input$showtype == "id"){
       # 如果此时页面为按id，则按选择的id更新id
       id <- input$id_select %>% as.numeric()
-    } else{
-      # 如果此时页面不是按id，则根据选择颜色数量，随机生成id
-      num <- input$num_select %>% as.numeric()
-      id  <- sample(colors_table[colors_table$col_num==num,]$col_id, 1)
+      rv$value <- id
     }
-    rv$value <- id
   })
+  
   # table.1：所选配色方案
   output$colors_info  <- renderReactable({
     showtype <- input$showtype
     custtext <- input$col_custom
-    if(showtype != "custom"){
+    if(showtype == "id"){
       # 如果非自定义，则按id显示方案信息
       id <- rv$value
       colo_inf <- data.frame(id=id, 
@@ -274,11 +285,12 @@ server <- function(input, output, session){
               width = "1001px",
               fullWidth = F)
   })
+  
   # fig.1：绘图效果
   output$plot_example <- renderPlot({
     showtype <- input$showtype
     custtext <- input$col_custom
-    if(showtype != "custom"){
+    if(showtype == "id"){
       id <- rv$value
       pic <- examp_plot(id, colors_nasc)
     } else{
@@ -293,11 +305,12 @@ server <- function(input, output, session){
     }
     return(pic)
   }) 
+  
   # fig.2：方案样式
   output$plot_color   <- renderPlot({
     showtype <- input$showtype
     custtext <- input$col_custom
-    if(showtype != "custom"){
+    if(showtype == "id"){
       id <- rv$value
       pic <- show_col(colors_nasc[[id]])
     } else{
@@ -312,13 +325,18 @@ server <- function(input, output, session){
     }
     return(pic)
   })  
+  
   # table.2：配色数据库详情
   output$colors_db    <- renderReactable({
     showtype <- input$showtype
-    colo_db <- data.frame(id=colors_table$col_id,
+    colnum <- colors_sect[col_num == input$num_select,] #根据所选颜色数量更新数据库表格
+    id_min <- colnum$min
+    id_max <- colnum$max
+    colo_db <- data.table(id=colors_table$col_id,
                           colors_n=colors_table$col_num,
                           colors_hex=map_chr(colors_nasc, ~paste0(.x, collapse = ", ")),
-                          colors_show=map_chr(colors_nasc, ~paste0(.x, collapse = ", ")))
+                          colors_show=map_chr(colors_nasc, ~paste0(.x, collapse = ", "))) %>% 
+      .[id>=id_min&id<=id_max,]
     reactable(colo_db,
               columns = list(id=colDef(name="方案id", width = 60, align = "center"),
                              colors_n=colDef(name="所含颜色数", width = 90, align = "center"),
@@ -357,14 +375,16 @@ server <- function(input, output, session){
     )
   })
   
+  # 点击表格更新绘图效果
   observeEvent(input$selected_row, {
     selected_row <- input$selected_row
     if (!is.null(selected_row)) {
-      selected_id <- colors_table$col_id[selected_row]
-      updateSliderInput(session, "id_select", value = selected_id)
-      # updateTextInput(session, "col_custom", value = paste0(colors_nasc[[selected_row]], collapse = ", "))
+      colnum <- colors_sect[col_num == input$num_select,]      #所选颜色数量对应的id区间
+      selected_id <- seq(colnum$min, colnum$max)[selected_row] #提取id区间，点击的行号，对应的准确id
+      updateSliderTextInput(session, "id_select", selected = selected_id) #更新selected
     }
   })
+  
 }
 
 # 输出app
