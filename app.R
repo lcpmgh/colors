@@ -19,7 +19,7 @@ ui <- dashboardPage(
     uiOutput("uipanel"),
     tags$hr(),
     tags$div(align = "center", 
-             tags$p("\ua9 2021-2024, LIANG Chen, Institute of Mountain Hazards and Environment, CAS. All rights reserved.", style="height:8px"),
+             tags$p("\ua9 2021-2024, Lcpmgh, All rights reserved.", style="height:8px"),
              tags$div(align = "center",
                       actionLink(inputId = "", label = "lcpmgh ", icon = icon("github"), onclick ="window.open('https://github.com/lcpmgh')"),
                       tags$p("  ", style = "display:inline;white-space:pre"),
@@ -180,6 +180,7 @@ server <- function(input, output, session){
               h3("方案样式"),
               plotOutput(outputId = "plot_color", width = "500px", height = "400px"))),
       h3("配色数据库（点击表格显示绘图效果）"),
+      tags$head(tags$style(HTML(".reactable-hover .rt-tr-group:hover {cursor: pointer;}"))),  
       reactableOutput(outputId = "colors_db")
     )
   })
@@ -337,6 +338,7 @@ server <- function(input, output, session){
                           colors_hex=map_chr(colors_nasc, ~paste0(.x, collapse = ", ")),
                           colors_show=map_chr(colors_nasc, ~paste0(.x, collapse = ", "))) %>% 
       .[id>=id_min&id<=id_max,]
+    class_name <- if (input$showtype == "id") "reactable-hover" else ""   #当用户选择id时，才有hover属性
     reactable(colo_db,
               columns = list(id=colDef(name="方案id", width = 60, align = "center"),
                              colors_n=colDef(name="所含颜色数", width = 90, align = "center"),
@@ -349,8 +351,8 @@ server <- function(input, output, session){
                                do.call(tagList, color_divs)
                              })
               ),
-              language = reactableLang(
-                searchPlaceholder = "查找..."),
+              class = class_name,
+              language = reactableLang(searchPlaceholder = "查找..."),
               sortable = F,
               resizable = F,
               showPageSizeOptions = T,
