@@ -50,7 +50,7 @@ server <- function(input, output, session){
                      max=max(colors_table$col_id), 
                      min=min(colors_table$col_id)), .)                                              #提取每个数量区间的id范围          
   # 函数
-  examp_plot   <- function(id, colors_nasc=NULL, custom=c("#F5A889", "#ACD6EC")){
+  examp_plot   <- function(id, colors_nasc=NULL, custom=c("#F5A889", "#ACD6EC"), alp=0.1){
     # 函数，根据给定颜色id或自定义的颜色，画4个案例图
     # id=0时自定义颜色，否则按colors_nasc中的颜色
     if(id == 0){
@@ -64,7 +64,7 @@ server <- function(input, output, session){
     dat_bar <- data.frame(a=sample(letters, ncolor, replace = F), 
                           b=runif(ncolor, 7, 10))
     p_bar <- ggplot(dat_bar, aes(a, b, fill=a))+
-      geom_bar(color="black", stat = "identity")+
+      geom_bar(color="black", stat = "identity", alpha=alp)+
       scale_y_continuous(expand = c(0,0,0,0.1))+
       scale_fill_manual(values = tcolor)+
       labs(x="x-axis", y="y-axis", title = "Bar Chart with outlines")+
@@ -74,7 +74,7 @@ server <- function(input, output, session){
                           b=runif(ncolor*20, 7, 10))
     p_box <- ggplot(dat_box, aes(a, b, fill=a))+
       stat_boxplot(geom = "errorbar", linewidth=0.8, width = 0.3)+
-      geom_boxplot()+
+      geom_boxplot(alpha=alp)+
       scale_fill_manual(values = tcolor)+
       labs(x="x-axis", y="y-axis", title = "Boxplot with outlines")+
       theme_bw()+theme(plot.title = element_text(hjust = 0.5))
@@ -83,7 +83,7 @@ server <- function(input, output, session){
                             b=rep(runif(30), ncolor),
                             t=rep(sample(letters, ncolor, replace = F), 30))
     p_point <- ggplot(dat_point, aes(a, b, color=t, fill=t))+
-      geom_point(shape=21, size=5)+
+      geom_point(shape=21, size=5, alpha=alp)+
       scale_color_manual(values = tcolor)+
       scale_fill_manual(values = tcolor)+
       labs(x="x-axis", y="y-axis", title = "scatterplot without outlines")+
@@ -93,7 +93,7 @@ server <- function(input, output, session){
                            b=rep(1:ncolor, each=20)+rnorm(20*ncolor, 0, 0.3), 
                            t=rep(sample(letters, ncolor), each=20))
     p_line <- ggplot(dat_line, aes(a, b, color=t, group=t))+
-      geom_line(linewidth=1)+
+      geom_line(linewidth=1, alpha=alp)+
       scale_color_manual(values = tcolor)+
       labs(x="x-axis", y="y-axis", title = "Line chart without outlines")+
       theme_bw()+theme(plot.title = element_text(hjust = 0.5))
@@ -155,6 +155,7 @@ server <- function(input, output, session){
                        div(style = "display: flex; align-items: center; width:700px",
                            colourInput(inputId = "sele_col", 
                                        label = "追加颜色", 
+                                       allowTransparent = T,
                                        width = "174px",
                                        value = "skyblue"),
                            div(style = "width: 15%; text-align: center; padding-left: 20px;  padding-top: 10px;", 
@@ -172,13 +173,20 @@ server <- function(input, output, session){
       # 选择结果
       h3("所选配色方案"),
       reactableOutput(outputId = "colors_info"),
-      div(style = "display: flex; align-items: center; width:1001px",
+      # h3("颜色透明度"),
+      sliderTextInput(inputId = "color_alpha",
+                      label = "颜色透明度（颜色图层的alpha值）", 
+                      choices = seq(0,1, by=0.05),
+                      selected = 1,
+                      grid = T,
+                      width = "500px"),
+      div(style = "display: flex; align-items: center; width:1021px",
           div(style = "width: 50%; text-align: center;", 
               h3("绘图效果"),
-              plotOutput(outputId = "plot_example", width = "500px", height = "400px")),
+              plotOutput(outputId = "plot_example", width = "510px", height = "400px")),
           div(style = "width: 50%; text-align: center;", 
               h3("方案样式"),
-              plotOutput(outputId = "plot_color", width = "500px", height = "400px"))),
+              plotOutput(outputId = "plot_color", width = "510px", height = "400px"))),
       h3("配色数据库（点击表格显示绘图效果）"),
       tags$head(tags$style(HTML(".reactable-hover .rt-tr-group:hover {cursor: pointer;}"))),  
       reactableOutput(outputId = "colors_db")
@@ -265,16 +273,17 @@ server <- function(input, output, session){
     }
     # 显示表格
     reactable(colo_inf,
-              columns = list(id=colDef(name="方案id", width = 60, align = "center"),
-                             colors_n=colDef(name="所含颜色数", width = 90, align = "center"),
-                             colors_hex=colDef(name = "颜色HEX码", width = 650, align = "center"),
-                             colors_show=colDef(name = "颜色预览", align = "center", cell = function(value) {
-                               color_list <- strsplit(value, ", ")[[1]]
-                               color_divs <- lapply(color_list, function(color) {
-                                 tags$div(style = paste("width: 20px; height: 20px; background-color:", color, "; display: inline-block; margin-right: 5px; border: 1px solid black;"))
-                               })
-                               do.call(tagList, color_divs)
-                             })
+              columns = list(
+                id = colDef(name = "方案id", width = 60, align = "center", style = list(display = "flex", alignItems = "center", justifyContent = "center")),
+                colors_n = colDef(name = "所含颜色数", width = 90, align = "center", style = list(display = "flex", alignItems = "center", justifyContent = "center")),
+                colors_hex = colDef(name = "颜色HEX码", width = 650, align = "center", style = list(display = "flex", alignItems = "center", justifyContent = "center")),
+                colors_show=colDef(name = "颜色预览", align = "center", cell = function(value) {
+                  color_list <- strsplit(value, ", ")[[1]]
+                  color_divs <- lapply(color_list, function(color) {
+                    tags$div(style = paste("width: 20px; height: 20px; background-color:", color, "; display: inline-block; margin-right: 5px; border: 1px solid black;"))
+                  })
+                  do.call(tagList, color_divs)
+                }, style = list(display = "flex", alignItems = "center", justifyContent = "center"))
               ),
               sortable = F, 
               resizable = F,
@@ -283,7 +292,7 @@ server <- function(input, output, session){
               striped = T,
               bordered = T,
               compact = F,
-              width = "1001px",
+              width = "1020px",
               fullWidth = F)
   })
   
@@ -291,9 +300,10 @@ server <- function(input, output, session){
   output$plot_example <- renderPlot({
     showtype <- input$showtype
     custtext <- input$col_custom
+    coloralp <- input$color_alpha %>% as.numeric()
     if(showtype == "id"){
       id <- rv$value
-      pic <- examp_plot(id, colors_nasc)
+      pic <- examp_plot(id, colors_nasc, alp = coloralp)
     } else{
       colsig <- iscolors(custtext)
       if(isFALSE(colsig)){
@@ -301,7 +311,7 @@ server <- function(input, output, session){
           geom_text(label="ERROR", hjust=0.5, vjust=0.5, size=8)+
           theme_void()
       } else{
-        pic <- examp_plot(0, NULL, colsig)
+        pic <- examp_plot(0, NULL, colsig, alp = coloralp)
       }
     }
     return(pic)
@@ -340,16 +350,17 @@ server <- function(input, output, session){
       .[id>=id_min&id<=id_max,]
     class_name <- if (input$showtype == "id") "reactable-hover" else ""   #当用户选择id时，才有hover属性
     reactable(colo_db,
-              columns = list(id=colDef(name="方案id", width = 60, align = "center"),
-                             colors_n=colDef(name="所含颜色数", width = 90, align = "center"),
-                             colors_hex=colDef(name = "颜色HEX码", width = 650, align = "center"),
-                             colors_show=colDef(name = "颜色预览", align = "center", cell = function(value) {
-                               color_list <- strsplit(value, ", ")[[1]]
-                               color_divs <- lapply(color_list, function(color) {
-                                 tags$div(style = paste("width: 20px; height: 20px; background-color:", color, "; display: inline-block; margin-right: 5px; border: 1px solid black;"))
-                               })
-                               do.call(tagList, color_divs)
-                             })
+              columns = list(
+                id = colDef(name = "方案id", width = 60, align = "center", style = list(display = "flex", alignItems = "center", justifyContent = "center")),
+                colors_n = colDef(name = "所含颜色数", width = 90, align = "center", style = list(display = "flex", alignItems = "center", justifyContent = "center")),
+                colors_hex = colDef(name = "颜色HEX码", width = 650, align = "center", style = list(display = "flex", alignItems = "center", justifyContent = "center")),
+                colors_show=colDef(name = "颜色预览", align = "center", cell = function(value) {
+                  color_list <- strsplit(value, ", ")[[1]]
+                  color_divs <- lapply(color_list, function(color) {
+                    tags$div(style = paste("width: 20px; height: 20px; background-color:", color, "; display: inline-block; margin-right: 5px; border: 1px solid black;"))
+                  })
+                  do.call(tagList, color_divs)
+                }, style = list(display = "flex", alignItems = "center", justifyContent = "center"))
               ),
               class = class_name,
               language = reactableLang(searchPlaceholder = "查找..."),
@@ -361,7 +372,7 @@ server <- function(input, output, session){
               striped = T,
               bordered = T,
               compact = F,
-              width = "1001px",
+              width = "1020px",
               fullWidth = F,
               theme = reactableTheme(searchInputStyle = list("margin-top" = "7px", "margin-right" = "7px")),
               onClick = if(showtype != "custom"){

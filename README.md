@@ -14,6 +14,7 @@
 5. [分享 | 顶刊高质量论文插图配色（含RGB值及16进制HEX码）（第一期）](https://zhuanlan.zhihu.com/p/670396774)
 6. [分享 | 顶刊高质量论文插图配色（含RGB值及16进制HEX码）（第二期）](https://zhuanlan.zhihu.com/p/674906660)
 7. [分享 | 顶刊高质量论文插图配色（含RGB值及16进制HEX码）（第三期）](https://zhuanlan.zhihu.com/p/689959306)
+8. [论文配色：跟着顶刊学配色（Nature篇）](https://zhuanlan.zhihu.com/p/704390338)
 
 
 
