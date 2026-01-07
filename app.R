@@ -1,11 +1,9 @@
 library(shiny)
-library(purrr)
-library(scales)
 library(ggplot2)
 library(stringr)
 library(magrittr)
 library(reactable)
-library(gridExtra)
+library(patchwork)
 library(htmltools)
 library(data.table)
 library(shinyWidgets)
@@ -19,7 +17,7 @@ ui <- dashboardPage(
     uiOutput("uipanel"),
     tags$hr(),
     tags$div(align = "center", 
-             tags$p("\ua9 2021-2024, Lcpmgh, All rights reserved.", style="height:8px"),
+             tags$p("\ua9 2021-2026, Lcpmgh, All rights reserved.", style="height:8px"),
              tags$div(align = "center",
                       actionLink(inputId = "", label = "lcpmgh ", icon = icon("github"), onclick ="window.open('https://github.com/lcpmgh')"),
                       tags$p("  ", style = "display:inline;white-space:pre"),
@@ -40,8 +38,8 @@ ui <- dashboardPage(
 server <- function(input, output, session){
   # 数据
   colors <- readLines("@colors.txt") %>% str_split(",") %>% lapply(., sort) %>% .[!duplicated(.)]  #读取、排序、去重
-  colors_nasc  <- map_int(colors, length) %>% order() %>% colors[.]                                #按子颜色数量排序
-  colors_table <- data.frame(col_id=1:length(colors_nasc), col_num=map_int(colors_nasc, length))   #颜色序号数量表
+  colors_nasc  <- sapply(colors, length) %>% order() %>% colors[.]                                 #按子颜色数量排序
+  colors_table <- data.frame(col_id=1:length(colors_nasc), col_num=sapply(colors_nasc, length))    #颜色序号数量表
   setDT(colors_table)
   colors_sect  <- colors_table[, c(min(.SD),max(.SD)), .SDcols=1,by="col_num"]  %>% 
     .[, type:=rep(c("min", "max"), nrow(.)/2)] %>% 
@@ -98,7 +96,8 @@ server <- function(input, output, session){
       labs(x="x-axis", y="y-axis", title = "Line chart without outlines")+
       theme_bw()+theme(plot.title = element_text(hjust = 0.5))
     # 合并
-    p <- grid.arrange(p_bar, p_box, p_point, p_line, padding=0, nrow = 2, ncol = 2)
+    # p <- grid.arrange(p_bar, p_box, p_point, p_line, padding=0, nrow = 2, ncol = 2)
+    p <- (p_bar + p_box) / (p_point + p_line)
     return(p)
   }            
   iscolors     <- function(str){
@@ -127,7 +126,7 @@ server <- function(input, output, session){
                    label    = NULL,
                    choices  = list("配色数据库方案id" = "id", "自定义配色方案" = "custom"),
                    inline   = T,
-                   selected = c("按数量" = "id")),
+                   selected = c("id")),
       # 按id
       conditionalPanel(condition = "input.showtype == 'id'",
                        selectInput(inputId = "num_select", 
@@ -155,7 +154,7 @@ server <- function(input, output, session){
                        div(style = "display: flex; align-items: center; width:700px",
                            colourInput(inputId = "sele_col", 
                                        label = "追加颜色", 
-                                       allowTransparent = T,
+                                       allowTransparent = F,
                                        width = "174px",
                                        value = "skyblue"),
                            div(style = "width: 15%; text-align: center; padding-left: 20px;  padding-top: 10px;", 
@@ -187,7 +186,14 @@ server <- function(input, output, session){
           div(style = "width: 50%; text-align: center;", 
               h3("方案样式"),
               plotOutput(outputId = "plot_color", width = "510px", height = "400px"))),
-      h3("配色数据库（点击表格显示绘图效果）"),
+      conditionalPanel(
+        condition = "input.showtype == 'id'",
+        h3("配色数据库（点击表格显示绘图效果）")
+      ),
+      conditionalPanel(
+        condition = "input.showtype == 'custom'",
+        h3("配色数据库")
+      ),
       tags$head(tags$style(HTML(".reactable-hover .rt-tr-group:hover {cursor: pointer;}"))),  
       reactableOutput(outputId = "colors_db")
     )
@@ -323,7 +329,7 @@ server <- function(input, output, session){
     custtext <- input$col_custom
     if(showtype == "id"){
       id <- rv$value
-      pic <- show_col(colors_nasc[[id]])
+      pic <- scales::show_col(colors_nasc[[id]])
     } else{
       colsig <- iscolors(custtext)
       if(isFALSE(colsig)){
@@ -331,7 +337,7 @@ server <- function(input, output, session){
           geom_text(label="ERROR", hjust=0.5, vjust=0.5, size=8)+
           theme_void()
       } else{
-        pic <- show_col(colsig)
+        pic <- scales::show_col(colsig)
       }
     }
     return(pic)
@@ -345,8 +351,9 @@ server <- function(input, output, session){
     id_max <- colnum$max
     colo_db <- data.table(id=colors_table$col_id,
                           colors_n=colors_table$col_num,
-                          colors_hex=map_chr(colors_nasc, ~paste0(.x, collapse = ", ")),
-                          colors_show=map_chr(colors_nasc, ~paste0(.x, collapse = ", "))) %>% 
+                          # colors_hex=map_chr(colors_nasc, ~paste0(.x, collapse = ", ")), 
+                          colors_hex=sapply(colors_nasc, function(x) paste0(x, collapse = ", ")), 
+                          colors_show=sapply(colors_nasc, function(x) paste0(x, collapse = ", "))) %>% 
       .[id>=id_min&id<=id_max,]
     class_name <- if (input$showtype == "id") "reactable-hover" else ""   #当用户选择id时，才有hover属性
     reactable(colo_db,
@@ -380,11 +387,12 @@ server <- function(input, output, session){
                 if (window.Shiny) {
                   Shiny.setInputValue('selected_row', rowInfo.index + 1);
                   window.scrollTo({
-                  top: 0, 
+                  top: 330,             // 不要滑动到顶，留330px空间
                   left: 0, 
                   behavior:'smooth'});  // 平滑滚动到页面顶部
                 }
-                }")}
+                }")
+              }
     )
   })
   
