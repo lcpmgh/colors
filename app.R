@@ -1,3 +1,5 @@
+# 学术期刊配色推荐器
+
 ##### packages ##########################################################################
 library(shiny)
 library(ggplot2)
@@ -8,7 +10,7 @@ library(shinyWidgets)
 library(colourpicker)
 library(DT)
 
-##### setting ##########################################################################
+##### settings ##########################################################################
 # 数据
 colors_init  <- readLines("@colors.txt") %>% str_split(",") %>% lapply(., sort) %>% .[!duplicated(.)]  #读取、排序、去重
 colors_nasc  <- sapply(colors_init, length) %>% order() %>% colors_init[.]                             #按子颜色数量排序
@@ -23,17 +25,25 @@ is_colors         <- function(str){
   # 函数，使用str_detect检查str是否是正确的颜色HEX码
   if(is.na(str))  return(F)                     #如果str是NA，直接返回F              
   if(str_length(str_trim(str))<1) return(F)     #如果str是空，直接返回F
-  colo <- str_split(str, "[,，;、 ]") %>% unlist() %>% str_trim() %>% .[nchar(.) > 0] %>% .[!duplicated(.)]
-  sig  <- str_detect(colo, "^#[A-Fa-f0-9]{6}$")
-  if(any(!sig) | length(colo)>16){
+  colors <- str_split(str, "[,，;、 ]") %>% unlist() %>% str_trim() %>% .[str_length(.) > 0] %>% .[!duplicated(.)]
+  sig  <- str_detect(colors, "^#[A-Fa-f0-9]{6}([A-Fa-f0-9]{2})?$")
+  if(any(!sig) | length(colors)>16){
     # 如不是颜色，返回F
     return(F)
   } else{
     # 如是颜色，返回颜色HEX
-    return(colo)
+    return(colors)
   }
 }
-show_color        <- function(id, customcolor=NA, alpha, type){
+add_color_tp      <- function(colors, ctp_p){
+  # 为颜色追加透明度，ctp_p是透明度百分比(0-100)，透明度为0时不改变颜色值，对已有透明度的不改变颜色值
+  if(ctp_p == 0) return(colors)
+  ctp <- ((100-ctp_p)*255/100) %>% round() %>% sprintf("%02X", .)
+  no_tp_id <- str_length(colors)==7
+  colors[no_tp_id] <- paste0(colors[no_tp_id], ctp)
+  return(colors)
+}
+show_color        <- function(id, customcolor=NA, ctp_p=0, type){
   # 函数，根据给定颜色id/自定义颜色+透明度，绘制特定类型的图bar/box/point/line/pattern
   # id==0时，自定义颜色，否则按colors_nasc中的颜色
   # id==0时，如输入颜色有误，则绘制错误提示图像
@@ -41,22 +51,22 @@ show_color        <- function(id, customcolor=NA, alpha, type){
     sigcolor <- is_colors(customcolor)
     if(isFALSE(sigcolor)){
       plot <- ggplot()+
-        annotate(geom="text", x=1,y=1,label="颜色有误！",size=10)+
+        annotate(geom="text",x=1,y=1,label="ERROR！",size=10)+
         theme_void()+
         theme(panel.border = element_rect(color="black", linewidth = 1))
       return(plot)
     } else{
-      tcolor <- sigcolor
+      tcolor <- sigcolor %>% add_color_tp(ctp_p)
       ncolor <- length(tcolor)
     }
   } else{
-    tcolor <- colors_nasc[[id]]
+    tcolor <- colors_nasc[[id]] %>% add_color_tp(ctp_p)
     ncolor <- length(tcolor)
   }
   if(type == "bar"){
     dat_bar <- data.frame(x=letters[1:ncolor], y=runif(ncolor, 7, 10))
     plot <- ggplot(dat_bar, aes(x, y, fill=x))+
-      geom_bar(color="black", stat = "identity", alpha=alpha)+
+      geom_bar(color="black", stat = "identity")+
       scale_y_continuous(expand = c(0,0,0.05,0))+
       scale_fill_manual(values = tcolor)+
       labs(fill="fill", title = "Bar Chart with outlines")
@@ -64,7 +74,7 @@ show_color        <- function(id, customcolor=NA, alpha, type){
     dat_box <- data.frame(x=letters[1:ncolor], y=runif(ncolor*10, 7, 10))
     plot <- ggplot(dat_box, aes(x, y, fill=x))+
       stat_boxplot(geom = "errorbar", linewidth=0.8, width = 0.3)+
-      geom_boxplot(alpha=alpha)+
+      geom_boxplot()+
       scale_fill_manual(values = tcolor)+
       labs(fill="fill", title = "Boxplot with outlines")
   } else if(type == "point"){
@@ -72,7 +82,7 @@ show_color        <- function(id, customcolor=NA, alpha, type){
                             y=rep(runif(30), ncolor),
                             c=rep(sample(letters, ncolor, replace = F), 30))
     plot <- ggplot(dat_point, aes(x, y, color=c))+
-      geom_point(shape=16, size=5, alpha=alpha)+
+      geom_point(shape=16, size=5)+
       scale_color_manual(values = tcolor)+
       labs(color="color", title = "scatterplot without outlines")
   } else if(type == "line"){
@@ -80,7 +90,7 @@ show_color        <- function(id, customcolor=NA, alpha, type){
                            y=rep(1:ncolor, each=20)+rnorm(20*ncolor, 0, 0.3),
                            c=rep(sample(letters, ncolor), each=20))
     plot <- ggplot(dat_line, aes(x, y, color=c, group=c))+
-      geom_line(linewidth=1, alpha=alpha)+
+      geom_line(linewidth=1)+
       scale_color_manual(values = tcolor)+
       labs(color="color", title = "Line chart without outlines")
   } else if(type == "pattern"){
@@ -117,35 +127,38 @@ make_color_blocks <- function(value) {
     collapse = ""
   )
 }
-make_color_dt     <- function(id, customcolor=NA, colors=colors_nasc){
+make_color_dt     <- function(id, customcolor=NA, colors=colors_nasc, ctp_p=0){
   # 利用颜色id或自定义颜色，生成展示表格所需的数据
   # 注意，当id=="all"时，代表所有颜色，当id==0时，代表自定颜色，此时必须要有customcolor
   if(id==0){
-    sigcolor <- is_colors(customcolor)
+    sigcolor <- is_colors(customcolor) 
     if(isFALSE(sigcolor)){
-      color_dt <- data.table(id=0, colors_n=0, colors_hex="ERROR", colors_show="ERROR")
+      color_dt <- data.table(id=0, colors_n=0, colors_hex="ERROR!", colors_show="ERROR!")
       return(color_dt)
     } else{
+      colors_integrate <- add_color_tp(sigcolor, ctp_p) %>% paste0(collapse = ", ")
       tcolor_dt <- data.table(
         id=0,
         colors_n=length(sigcolor),
-        colors_hex=paste0(sigcolor, collapse = ", "),
-        colors_show=paste0(sigcolor, collapse = ", ")
+        colors_hex=colors_integrate,
+        colors_show=colors_integrate
       )
     }
   } else if(id=="all"){
+    colors_integrate <- sapply(colors_nasc, function(x) paste0(x, collapse = ", "))
     tcolor_dt <- data.table(
       id=1:length(colors_nasc),
       colors_n=sapply(colors_nasc, length),
-      colors_hex=sapply(colors_nasc, function(x) paste0(x, collapse = ", ")),
-      colors_show=sapply(colors_nasc, function(x) paste0(x, collapse = ", "))
+      colors_hex=colors_integrate,
+      colors_show=colors_integrate
     )
   } else{
+    colors_integrate <- add_color_tp(colors_nasc[[id]], ctp_p) %>% paste0(collapse = ", ")
     tcolor_dt <- data.table(
       id=id,
       colors_n=length(colors_nasc[[id]]),
-      colors_hex=paste0(colors_nasc[[id]], collapse = ", "),
-      colors_show=paste0(colors_nasc[[id]], collapse = ", ")
+      colors_hex=colors_integrate,
+      colors_show=colors_integrate
     )
   }
   # 将colors_show转换为可现实色块的html语句
@@ -207,138 +220,142 @@ ui <- fluidPage(
       }        /* 当选中且 hover 时，强制使用相同颜色，覆盖内置 hover 效果 */
     "))
   ),
-  # body部分
+  # 主体部分 ...................................................................
   div(
-    style = "margin:10px 0; display: flex; align-items: flex-end; gap: 2px;",
-    h3("方案选择"),
-    h5(sprintf("(数据库内现有%d个配色方案)",length(colors_nasc)))
-  ),
-  # 选择按数据库查找，还是自定义颜色
-  radioGroupButtons(
-    inputId = "showtype",
-    label = NULL,
-    choices = c("配色数据库方案id" = "id", "自定义配色方案" = "custom"),
-    selected = "id",
-    checkIcon = list(
-      yes = tags$i(class = "fa fa-check-square", style = "color: steelblue"),
-      no = tags$i(class = "fa fa-square-o", style = "color: steelblue"))
-  ),
-  # 如果按配色数据库方案
-  conditionalPanel(
-    condition = "input.showtype == 'id'",
-    sliderTextInput(
-      inputId = "num_select", 
-      label = "选择颜色数量", 
-      choices = colors_sect$col_num,
-      selected = "all",
-      width = "700px", 
-      grid  = T
-    ),
+    style = "max-width: 1080px; margin: 0 auto; padding: 0 10px;",
     div(
-      style = "display: flex; align-items: center; gap:30px;",
+      style = "margin:10px 0; display: flex; align-items: flex-end; gap: 2px;",
+      h3("方案选择"),
+      h5(sprintf("(数据库内现有%d个配色方案)",length(colors_nasc)))
+    ),
+    # 选择按数据库查找，还是自定义颜色
+    radioGroupButtons(
+      inputId = "showtype",
+      label = NULL,
+      choices = c("配色数据库方案id" = "id", "自定义配色方案" = "custom"),
+      selected = "id",
+      checkIcon = list(
+        yes = tags$i(class = "fa fa-check-square", style = "color: steelblue"),
+        no = tags$i(class = "fa fa-square-o", style = "color: steelblue"))
+    ),
+    # 如果按配色数据库方案
+    conditionalPanel(
+      condition = "input.showtype == 'id'",
       sliderTextInput(
-        inputId = "id_select", 
-        label = "选择方案id", 
-        choices = seq(colors_sect[[1, "min"]], colors_sect[[1, "max"]]),
-        selected = colors_sect[[1, "min"]],
-        width = "700px", 
+        inputId = "num_select", 
+        label = "选择颜色数量", 
+        choices = colors_sect$col_num,
+        selected = "all",
+        width = "800px", 
         grid  = T
       ),
       div(
-        style = "display: flex; align-items: center; gap:10px;",
-        shiny::actionButton(
-          inputId = "pre",
-          label = "上一个",
-          icon  = icon("angle-left")
+        style = "display: flex; align-items: center; gap:30px;",
+        sliderTextInput(
+          inputId = "id_select", 
+          label = "选择方案id", 
+          choices = seq(colors_sect[[1, "min"]], colors_sect[[1, "max"]]),
+          selected = colors_sect[[1, "min"]],
+          width = "800px", 
+          grid  = T
         ),
-        shiny::actionButton(
-          inputId = "nex",
-          label = "下一个",
-          icon  = icon("angle-right")
-        )
-      ),
-    )
-  ),
-  # 如果自定义颜色方案
-  conditionalPanel(
-    condition = "input.showtype == 'custom'",
-    div(
-      style = "display: flex; align-items: center; width:700px",
-      colourInput(
-        inputId = "sele_col", 
-        label = "追加颜色", 
-        allowTransparent = F,
-        width = "174px",
-        value = "skyblue"),
-      div(
-        style = "display: flex; text-align: center; gap: 20px; margin-top: 10px; margin-left: 20px",
-        shiny::actionButton(
-          inputId = "add_color", 
-          label = "加入",
-          icon  = icon("plus")
+        div(
+          style = "display: flex; align-items: center; gap:10px;",
+          shiny::actionButton(
+            inputId = "pre",
+            label = "上一个",
+            icon  = icon("angle-left")
+          ),
+          shiny::actionButton(
+            inputId = "nex",
+            label = "下一个",
+            icon  = icon("angle-right")
+          )
         ),
-        shiny::actionButton(
-          inputId = "reset_color", 
-          label = "重置",
-          icon  = icon("redo")
-        )
-      ),
+      )
     ),
-    textInput(
-      inputId = "color_custom",
-      label = "自定义颜色（HEX码，多个颜色以逗号、顿号、空格、分号间隔，颜色数量不可超过16，结果将去重）：",
-      width = "1000px",
-      value = "#4DBBD5, #00A087, #E64B35"
-    )
-  ),
-  # 选择结果
-  h3("所选配色方案"),
-  div(
-    style = "width: 1080px; margin: 0; overflow-x: left;",
-    DTOutput(outputId = "colors_info")
-  ),
-  # 更改透明度
-  div(
-    style = "margin-top: 20px;",   
-    sliderTextInput(
-      inputId = "color_alpha",
-      label = "颜色透明度（颜色图层的alpha值）",
-      choices = seq(0, 1, by = 0.05),
-      selected = 1,
-      grid = TRUE,
-      width = "500px"
-    )
-  ),
-  # 绘图效果展示
-  div(
-    style = "display: flex; align-items: top; width:1080px",
-    div(
-      style = "width: 50%; text-align: center;", 
-      h3("绘图效果"),
+    # 如果自定义颜色方案
+    conditionalPanel(
+      condition = "input.showtype == 'custom'",
       div(
-        style = "display: flex; gap:1px; margin:1px 0;",
-        plotOutput(outputId = "plot_bar", width = "268px", height = "220px"),
-        plotOutput(outputId = "plot_box", width = "268px", height = "220px")
+        style = "display: flex; align-items: center;",
+        colourInput(
+          inputId = "sele_col", 
+          label = "追加颜色", 
+          allowTransparent = T,
+          width = "174px",
+          value = "skyblue"
+        ),
+        div(
+          style = "display: flex; text-align: center; gap: 20px; margin-top: 10px; margin-left: 20px",
+          shiny::actionButton(
+            inputId = "add_color", 
+            label = "加入",
+            icon  = icon("plus")
+          ),
+          shiny::actionButton(
+            inputId = "reset_color", 
+            label = "重置",
+            icon  = icon("redo")
+          )
+        ),
       ),
-      div(
-        style = "display: flex; gap:1px; margin:1px 0;",
-        plotOutput(outputId = "plot_point", width = "268px", height = "220px"),
-        plotOutput(outputId = "plot_line",  width = "268px", height = "220px")
-      ),
+      textInput(
+        inputId = "color_custom",
+        label = "自定义颜色（HEX码，多个颜色以逗号、顿号、空格、分号间隔，颜色数量不可超过16，结果将去重）：",
+        width = "1000px",
+        value = "#4DBBD5, #00A087, #E64B35"
+      )
     ),
+    # 附加透明度
     div(
-      style = "width: 50%; text-align: center;", 
-      h3("方案样式"),
-      plotOutput(outputId = "plot_pattern", width = "536px", height = "440px")
+      sliderTextInput(
+        inputId = "color_tpp",
+        label = "追加透明度(修改无透明度颜色的HEX值)",
+        choices = seq(0, 100, by = 1),
+        selected = 0,
+        grid = T,
+        width = "800px",
+        post = "%"
+      )
+    ),
+    # 选择结果
+    h3("指定的色方案"),
+    div(
+      style = "width: 1080px; margin: 0; overflow-x: left;",
+      DTOutput(outputId = "colors_info")
+    ),
+    # 绘图效果展示
+    div(
+      style = "display: flex; align-items: top; width:1080px",
+      div(
+        style = "width: 50%; text-align: center;", 
+        h3("绘图效果"),
+        div(
+          style = "display: flex; gap:1px; margin:1px 0;",
+          plotOutput(outputId = "plot_bar", width = "270px", height = "230px"),
+          plotOutput(outputId = "plot_box", width = "270px", height = "230px")
+        ),
+        div(
+          style = "display: flex; gap:1px; margin:1px 0;",
+          plotOutput(outputId = "plot_point", width = "270px", height = "230px"),
+          plotOutput(outputId = "plot_line",  width = "270px", height = "230px")
+        ),
+      ),
+      div(
+        style = "width: 50%; text-align: center;", 
+        h3("方案样式"),
+        plotOutput(outputId = "plot_pattern", width = "540px", height = "460px")
+      )
+    ),
+    
+    # 配色数据库
+    conditionalPanel(condition = "input.showtype == 'id'",h3("配色数据库（点击表格显示绘图效果）")),
+    conditionalPanel(condition = "input.showtype == 'custom'",h3("配色数据库")),
+    div(
+      style = "width: 1080px; margin: 0; overflow-x: left;",
+      DTOutput(outputId = "colors_dataset")
     )
-  ),
-  
-  # 配色数据库
-  conditionalPanel(condition = "input.showtype == 'id'",h3("配色数据库（点击表格显示绘图效果）")),
-  conditionalPanel(condition = "input.showtype == 'custom'",h3("配色数据库")),
-  div(
-    style = "width: 1080px; margin: 0; overflow-x: left;",
-    DTOutput(outputId = "colors_dataset")
   ),
   
   # 网页页脚 ...................................................................
@@ -421,14 +438,15 @@ server <- function(input, output, session){
   # 配色方案信息
   output$colors_info  <- renderDT({
     showtype <- input$showtype
+    colortpp <- input$color_tpp
     color_id <- color_id_rv()
     color_custom <- color_custom_rv()
     if(showtype=="id"){
-      color_dt <- make_color_dt(color_id, NA, colors_nasc)
+      color_dt <- make_color_dt(color_id, NA, colors_nasc, colortpp)
     } else{
-      color_dt <- make_color_dt(0, color_custom, colors_nasc)
+      color_dt <- make_color_dt(0, color_custom, colors_nasc, colortpp)
     }
-    # color_dt <- make_color_dt("all", color_custom, colors_nasc)
+    # color_dt <- make_color_dt("all", color_custom, colors_nasc, 0)
     DT::datatable(
       color_dt,
       escape = FALSE,
@@ -439,8 +457,8 @@ server <- function(input, output, session){
       options = list(
         columnDefs = list(
           list(width = '30px',  targets = 0, className = 'dt-center'), 
-          list(width = '30px',  targets = 1, className = 'dt-center'), 
-          list(width = '700px', targets = 2),
+          list(width = '35px',  targets = 1, className = 'dt-center'), 
+          list(width = '695px', targets = 2),
           list(width = '320px', targets = 3)
         ),
         paging = FALSE,
@@ -458,57 +476,57 @@ server <- function(input, output, session){
   # 绘图效果 
   output$plot_bar     <- renderPlot({
     showtype      <- input$showtype
-    color_alpha   <- input$color_alpha
+    colortpp      <- input$color_tpp
     color_id      <- color_id_rv()
     color_custom  <- color_custom_rv()
     if(showtype=="id"){
-      show_color(color_id, NA, color_alpha, "bar")
+      show_color(color_id, NA, colortpp, "bar")
     } else{
-      show_color(0, color_custom, color_alpha, "bar")
+      show_color(0, color_custom, colortpp, "bar")
     }
   })
   output$plot_box     <- renderPlot({
     showtype      <- input$showtype
-    color_alpha   <- input$color_alpha
+    colortpp      <- input$color_tpp
     color_id      <- color_id_rv()
     color_custom  <- color_custom_rv()
     if(showtype=="id"){
-      show_color(color_id, NA, color_alpha, "box")
+      show_color(color_id, NA, colortpp, "box")
     } else{
-      show_color(0, color_custom, color_alpha, "box")
+      show_color(0, color_custom, colortpp, "box")
     }
   })
   output$plot_point   <- renderPlot({
     showtype      <- input$showtype
-    color_alpha   <- input$color_alpha
+    colortpp      <- input$color_tpp
     color_id      <- color_id_rv()
     color_custom  <- color_custom_rv()
     if(showtype=="id"){
-      show_color(color_id, NA, color_alpha, "point")
+      show_color(color_id, NA, colortpp, "point")
     } else{
-      show_color(0, color_custom, color_alpha, "point")
+      show_color(0, color_custom, colortpp, "point")
     }
   })
   output$plot_line    <- renderPlot({
     showtype      <- input$showtype
-    color_alpha   <- input$color_alpha
+    colortpp      <- input$color_tpp
     color_id      <- color_id_rv()
     color_custom  <- color_custom_rv()
     if(showtype=="id"){
-      show_color(color_id, NA, color_alpha, "line")
+      show_color(color_id, NA, colortpp, "line")
     } else{
-      show_color(0, color_custom, color_alpha, "line")
+      show_color(0, color_custom, colortpp, "line")
     }
   })
   output$plot_pattern <- renderPlot({
     showtype      <- input$showtype
-    # color_alpha   <- input$color_alpha
+    colortpp      <- input$color_tpp
     color_id      <- color_id_rv()
     color_custom  <- color_custom_rv()
     if(showtype=="id"){
-      show_color(color_id, NA, NA, "pattern")
+      show_color(color_id, NA, colortpp, "pattern")
     } else{
-      show_color(0, color_custom, NA, "pattern")
+      show_color(0, color_custom, colortpp, "pattern")
     }
   })
   
@@ -516,7 +534,7 @@ server <- function(input, output, session){
   output$colors_dataset  <- renderDT({
     current_showtype   <- input$showtype
     current_color_numb <- input$num_select
-    tcolor_dt <- make_color_dt("all", NA, colors_nasc) 
+    tcolor_dt <- make_color_dt("all", NA, colors_nasc, 0) 
     # 当showtype=="id"时，显示选中的颜色数量的数据
     # 当showtype=="custom"时，显示全部颜色数据
     if(current_showtype=="id"){
@@ -538,8 +556,8 @@ server <- function(input, output, session){
       options = list(
         columnDefs = list(
           list(width = '30px',  targets = 0, className = 'dt-center'), 
-          list(width = '30px',  targets = 1, className = 'dt-center'), 
-          list(width = '700px', targets = 2),
+          list(width = '35px',  targets = 1, className = 'dt-center'), 
+          list(width = '695px', targets = 2),
           list(width = '320px', targets = 3)
         ),
         pageLength = 25,
