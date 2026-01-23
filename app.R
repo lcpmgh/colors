@@ -395,7 +395,7 @@ server <- function(input, output, session){
     updateSliderTextInput(session, "id_select", choices = selected_seq, selected = selected_seq[1])
   }) %>% bindEvent(input$num_select)
   
-  # 点击上一个或下一个后，更新slider对应的值
+  # 点击上一个或下一个后，更新slider对应的id值
   observe({
     selected_row <- colors_sect[col_num == input$num_select,]
     selected_seq <- seq(selected_row$min, selected_row$max)
@@ -409,7 +409,7 @@ server <- function(input, output, session){
     updateSliderTextInput(session, "id_select", selected = newValue)
   }) %>% bindEvent(input$nex)
   
-  # 点击加入或重置颜色，更新textinput
+  # 点击加入或重置颜色，更新textinput、SliderTextInput
   observe({
     newValue <- str_split(input$color_custom, "[,，;、 ]") %>%
       unlist() %>%
@@ -423,6 +423,7 @@ server <- function(input, output, session){
   observe({
     newValue <- "#4DBBD5, #00A087, #E64B35"
     updateTextInput(session, "color_custom", value = newValue)
+    updateSliderTextInput(session, "color_tpp", selected = 0)
   }) %>% bindEvent(input$reset_color)
   
   # 动态数据
