@@ -1,14 +1,10 @@
-# 学术期刊配色推荐器
+# 科研绘图配色推荐器
 
 用R语言shiny包写了一个小程序，便于学术论文绘图时，离散配色方案的选择和参考，该程序已部署至云端，欢迎访问：<a href="http://lcpmgh.com/colors/" target="_blank">科研绘图配色推荐器</a>
 
-~~我的服务器性能太差了，经常跑满内存储存，所以设定了每4个小时（即北京时间0、4、8、12、16、20点）重启服务器，如云端app无法访问，请下载至本地运行，或等待服务器在临近时点重启后访问，感谢理解😀。~~
+ 线上app如有问题，仍建议下载运行，本代码开源，可在遵守MIT协议下自行取用。此外，欢迎提出意见、交流和讨论。
 
-服务器到期，续费时阿里云跟我说得加钱，所以我换腾讯云了，优惠套餐4核4G，比从前强了一倍，但只能用一年，明年再换吧😂。
-
-线上app如有问题，仍建议下载运行，本代码开源，可在遵守MIT协议下自行取用。此外，欢迎提出意见、交流和讨论。
-
-程序中包含的配色方案（保存于@colors.txt），收集自以下文章，在此表示感谢：
+程序中包含的部分配色方案（保存于@palettes.csv），收集自以下文章，在此表示感谢：
 
 1. [跟着顶刊学科研绘图——science配色篇（一）](https://zhuanlan.zhihu.com/p/679737536)
 
@@ -20,6 +16,15 @@
 7. [分享 | 顶刊高质量论文插图配色（含RGB值及16进制HEX码）（第三期）](https://zhuanlan.zhihu.com/p/689959306)
 8. [论文配色：跟着顶刊学配色（Nature篇）](https://zhuanlan.zhihu.com/p/704390338)
 
+此外，推荐一些配色方案或挑选工具：
+
+1. Python Color Palette Finder，两千多个配色方案的预览和挑选：https://python-graph-gallery.com/color-palette-finder/
+2. 常见科技期刊配色colorset查询系统，一个表格，应该也是用R写的：https://www.bioinformatics.com.cn/static/others/colorsets/colors.html
+3. scico, 一个R包，收集了Scientific colour maps的配色方案：https://github.com/thomasp85/scico
+4. rcartocolor，一个R包，收集了CARTO的配色方案：https://jakubnowosad.com/rcartocolor/
+
+实际上，这些配色方案太多了，看都看不过来，以我的经验，存几个自己喜欢的配色无脑用就行了。
+
 
 
 shinyapp预览：
@@ -29,6 +34,12 @@ shinyapp预览：
 
 
 ## 更新日志：
+
+2026-06-25 v4.0
+
+1. 大修，将原有单方案查看，更改为双栏对比布局
+2. 添加了一些，包括ggsci、grDevices等R语言包的离散配色方案
+3. 添加了RGB信息，优化了shiny流程，其他一些细节修改
 
 2026-01-23 v3.0.1
 
