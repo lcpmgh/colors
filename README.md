@@ -4,7 +4,7 @@
 
  线上app如有问题，仍建议下载运行，本代码开源，可在遵守MIT协议下自行取用。此外，欢迎提出意见、交流和讨论。
 
-程序中包含的部分配色方案（保存于@palettes.csv），收集自以下文章，在此表示感谢：
+程序中包含的部分配色方案（保存于@palettes.csv），收集自以下文章（在articles文件夹留有备份），在此表示感谢：
 
 1. [跟着顶刊学科研绘图——science配色篇（一）](https://zhuanlan.zhihu.com/p/679737536)
 
@@ -22,8 +22,9 @@
 2. 常见科技期刊配色colorset查询系统，一个表格，应该也是用R写的：https://www.bioinformatics.com.cn/static/others/colorsets/colors.html
 3. scico, 一个R包，收集了Scientific colour maps的配色方案：https://github.com/thomasp85/scico
 4. rcartocolor，一个R包，收集了CARTO的配色方案：https://jakubnowosad.com/rcartocolor/
+5. colorspace，一个R包，有多种调色板、颜色选择和查看函数，其中`demoplot()`和本工具的绘图效果功能一样，但就是画出来太丑了，我所以没用它，此外，也有个选色app，可以尝试一下`hclwizard()`：https://colorspace.r-forge.r-project.org/index.html
 
-实际上，这些配色方案太多了，看都看不过来，以我的经验，存几个自己喜欢的配色无脑用就行了。
+实际上，这些配色方案太多了，看都看不过来，以我的经验，存几个自己喜欢的配色，需要时直接用就行了。
 
 
 
@@ -39,7 +40,7 @@ shinyapp预览：
 
 1. 大修，将原有单方案查看，更改为双栏对比布局
 2. 添加了一些，包括ggsci、grDevices等R语言包的离散配色方案
-3. 添加了RGB信息，优化了shiny流程，其他一些细节修改
+3. 添加了RGB信息，优化了shiny流程，修改了其他一些细节内容
 
 2026-01-23 v3.0.1
 
