@@ -828,7 +828,7 @@ server <- function(input, output, session){
     DT::datatable(
       color_dt,
       escape = FALSE,
-      colnames = c("项目", "内容"),
+      colnames = c("参数", "值"),
       rownames = FALSE,
       selection = "none",
       options = list(
@@ -852,7 +852,7 @@ server <- function(input, output, session){
     DT::datatable(
       color_dt,
       escape = FALSE,
-      colnames = c("项目", "内容"),
+      colnames = c("参数", "值"),
       rownames = FALSE,
       selection = "none",
       options = list(
